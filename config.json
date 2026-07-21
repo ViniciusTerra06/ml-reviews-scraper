@@ -1,0 +1,9 @@
+{
+  "product_ids": ["MLB15238956"],
+  "output_dir": "C:\\viniciusdev\\Projects\\Aula-Antonio\\Scrappings - csv",
+  "api_base": "https://api.mercadolibre.com",
+  "page_size": 10,
+  "request_delay_seconds": 1.5,
+  "max_retries": 5,
+  "timeout_seconds": 20
+}

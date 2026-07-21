@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+logs/
+*.log
+.DS_Store
+.vscode/
+.idea/
+.claude/
+# local Windows-only data folder — Actions writes to ./data
+/Scrappings - csv/
