@@ -69,7 +69,7 @@ Coletar **automaticamente e diariamente** todas as avaliações públicas de pro
 │   │  data/  ← CSVs commitados diariamente                    │  │
 │   └──────────────────────────────────────────────────────────┘  │
 │                             │                                   │
-│                             │ trigger: cron 11:00 UTC           │
+│                             │ trigger: cron 10:00 UTC           │
 │                             ▼                                   │
 │   ┌──────────────────────────────────────────────────────────┐  │
 │   │  GitHub Actions Runner (Ubuntu VM, efêmero)              │  │
@@ -160,7 +160,7 @@ Coletar **automaticamente e diariamente** todas as avaliações públicas de pro
 | **Vercel Cron** | Free tier generoso | Sandbox 60s max (ok), complica commit para GitHub | ❌ mais partes móveis |
 | **GitHub Actions** | Gratuito, integrado com repo, commit direto | 2000 min/mês em repo privado | ✅ **escolhido** |
 
-### 3. Cron 08:00 BRT (11:00 UTC)
+### 3. Cron 07:00 BRT (10:00 UTC)
 
 - Antes do horário comercial → dados prontos quando o usuário chega para trabalhar.
 - Fim de semana também roda (Mercado Livre nunca dorme).
@@ -468,7 +468,7 @@ Chaves:
 
 ### `.github/workflows/daily.yml`
 
-- `on.schedule.cron: "0 11 * * *"` — 11 UTC = 08 BRT.
+- `on.schedule.cron: "0 10 * * *"` — 10 UTC = 07 BRT.
 - `on.workflow_dispatch: {}` — habilita botão "Run workflow" no GitHub UI e `gh workflow run`.
 - `permissions.contents: write` — necessário para o step de commit + push.
 - `concurrency` — impede runs simultâneos (evita conflito de push).
@@ -499,11 +499,11 @@ Uma única linha útil: `git pull --ff-only`.
 
 ## Fluxo de execução (o que acontece a cada dia)
 
-### 11:00:00 UTC (08:00 BRT)
+### 10:00:00 UTC (07:00 BRT)
 
 GitHub aciona o cron. Fila de jobs GitHub Actions.
 
-### 11:00:XX UTC — Runner sobe
+### 10:00:XX UTC — Runner sobe
 
 VM Ubuntu 22.04 é provisionada. Cerca de 5–10 segundos.
 
@@ -531,7 +531,7 @@ VM Ubuntu 22.04 é provisionada. Cerca de 5–10 segundos.
 
 **Total: ~90 segundos.**
 
-### 11:01:30 UTC (~08:01:30 BRT) — CSV atualizado no repo
+### 10:01:30 UTC (~07:01:30 BRT) — CSV atualizado no repo
 
 Novo commit visível em https://github.com/ViniciusTerra06/ml-reviews-scraper/commits/main
 

@@ -24,7 +24,7 @@ Roda **automaticamente na cloud** (GitHub Actions), com CSV sincronizado para pa
 ## O que este projeto faz
 
 - Recebe uma lista de **produtos do Mercado Livre** (por ID `MLBxxxxxxxxx` ou URL completa).
-- **Todo dia 08:00 (horário de Brasília)** consulta o endpoint público de reviews do ML e coleta **todas as avaliações** de cada produto.
+- **Todo dia 07:00 (horário de Brasília)** consulta o endpoint público de reviews do ML e coleta **todas as avaliações** de cada produto.
 - Salva um snapshot diário do dia + um arquivo `_latest.csv` sempre atualizado (fonte estável para o BI apontar).
 - Commita os CSVs num repositório privado (`ViniciusTerra06/ml-reviews-scraper`) — histórico completo versionado.
 - Sincroniza automaticamente para a pasta local `C:\viniciusdev\Projects\Aula-Antonio\Scrappings - csv\data\`.
@@ -34,7 +34,7 @@ Roda **automaticamente na cloud** (GitHub Actions), com CSV sincronizado para pa
 ## Arquitetura em 30 segundos
 
 ```
-GitHub Actions (cloud, 08:00 BRT)
+GitHub Actions (cloud, 07:00 BRT)
         │
         ▼
    scraper.py → data/reviews_MLB*.csv (commit + push)
@@ -128,9 +128,9 @@ git commit -m "config: adiciona produto MLB1234567890"
 git push
 ```
 
-**Pronto.** Na próxima execução diária (08:00 BRT), o scraper coletará todos os produtos da lista. Cada produto gera seus próprios CSVs (`reviews_{MLB_ID}_*.csv`).
+**Pronto.** Na próxima execução diária (07:00 BRT), o scraper coletará todos os produtos da lista. Cada produto gera seus próprios CSVs (`reviews_{MLB_ID}_*.csv`).
 
-Se quiser resultado imediato sem esperar 08:00, dispare o workflow manualmente:
+Se quiser resultado imediato sem esperar 07:00, dispare o workflow manualmente:
 
 ```powershell
 gh workflow run "Daily ML Reviews Scrape" --ref main
@@ -239,7 +239,7 @@ Editar `.github/workflows/daily.yml`:
 ```yaml
 on:
   schedule:
-    - cron: "0 11 * * *"   # 11 UTC = 08 BRT
+    - cron: "0 10 * * *"   # 10 UTC = 07 BRT
 ```
 
 Referência: [crontab.guru](https://crontab.guru/). Lembrar: cron do GitHub Actions usa **UTC**. BRT = UTC−3.
@@ -249,6 +249,7 @@ Referência: [crontab.guru](https://crontab.guru/). Lembrar: cron do GitHub Acti
 | Horário desejado (BRT) | Cron UTC |
 |---|---|
 | 06:00 | `0 9 * * *` |
+| 07:00 | `0 10 * * *` |
 | 08:00 | `0 11 * * *` |
 | 12:00 | `0 15 * * *` |
 | 18:00 | `0 21 * * *` |
