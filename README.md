@@ -27,7 +27,7 @@ Roda **automaticamente na cloud** (GitHub Actions), com CSV sincronizado para pa
 - Recebe uma lista de **produtos do Mercado Livre** (por ID `MLBxxxxxxxxx` ou URL completa).
 - **Todo dia 07:00 (horário de Brasília)** consulta o endpoint público de reviews do ML e coleta **todas as avaliações** de cada produto.
 - Salva um snapshot diário do dia + um arquivo `_latest.csv` sempre atualizado (fonte estável para o BI apontar).
-- Commita os CSVs num repositório privado (`ViniciusTerra06/ml-reviews-scraper`) — histórico completo versionado.
+- Commita os CSVs num repositório público (`ViniciusTerra06/ml-reviews-scraper`) — histórico completo versionado.
 - Sincroniza automaticamente para a pasta local `C:\viniciusdev\Projects\Aula-Antonio\Scrappings - csv\data\`.
 
 ---
@@ -71,7 +71,7 @@ Este arquivo é atualizado automaticamente. Não precisa fazer nada manual.
 https://raw.githubusercontent.com/ViniciusTerra06/ml-reviews-scraper/main/data/reviews_MLB15238956_latest.csv
 ```
 
-> ⚠️ Repositório é **privado**. Para BI acessar a raw URL, precisa de um Personal Access Token (PAT) do GitHub configurado no header `Authorization: Bearer TOKEN`.
+> Repositório é **público**. A raw URL é acessível sem autenticação — qualquer ferramenta de BI que aceite URL HTTP pode consumir diretamente.
 
 **Histórico (snapshots diários):**
 
@@ -212,13 +212,14 @@ Encoding: **UTF-8 com BOM** (compatível com Excel português).
 
 ### Power BI (raw URL do GitHub)
 
-Repo privado exige token. Use conector Web:
+Repo é público — nenhum token necessário. Use conector Web básico:
 
-1. **Obter Dados** → **Web** → **Avançado**
+1. **Obter Dados** → **Web** → **Básico**
 2. URL: `https://raw.githubusercontent.com/ViniciusTerra06/ml-reviews-scraper/main/data/reviews_MLB15238956_latest.csv`
-3. Cabeçalho HTTP:
-   - `Authorization` : `Bearer ghp_SEU_PAT_AQUI`
-4. Encoding: UTF-8.
+3. Encoding: UTF-8.
+4. **Carregar**.
+
+Vantagem sobre o arquivo local: o Power BI Service (cloud) consegue atualizar direto da raw URL, dispensando gateway on-premise.
 
 ### Excel
 
@@ -290,27 +291,23 @@ O scraper roda **na cloud (GitHub Actions)** — a máquina nova não executa o 
 | Ferramenta | Link | Verificação |
 |---|---|---|
 | Git for Windows | https://git-scm.com/download/win | `git --version` |
-| GitHub CLI | https://cli.github.com | `gh --version` |
 | Python 3.13+ *(opcional, só se for rodar scraper local)* | https://www.python.org/downloads/ | `py -3 --version` |
+| GitHub CLI *(opcional, só se for contribuir com commits)* | https://cli.github.com | `gh --version` |
 
 Durante a instalação do Python, marcar **"Add Python to PATH"**.
 
-### Passo 2 — Autenticar no GitHub
+### Passo 2 — (Opcional) Autenticar no GitHub
 
-O repositório é privado, então o clone exige credenciais.
+O repositório é **público**, então o `git clone` funciona anônimo — pule este passo se você só vai consumir os CSVs.
+
+Só é necessário autenticar se esta máquina também for editar o código e fazer push:
 
 ```powershell
 gh auth login
 # Selecionar: GitHub.com → HTTPS → Login with a web browser
 gh auth setup-git
-```
-
-Confirmar:
-```powershell
 gh auth status
 ```
-
-Esperado: `Logged in to github.com as SEU_USER`.
 
 ### Passo 3 — Clonar o repositório
 
@@ -414,9 +411,9 @@ py -3 -X utf8 src\scraper.py
 
 ### Notas importantes
 
+- **Repositório é público** — clone e `git pull` funcionam sem autenticação.
 - **Nomes das tasks devem ser únicos por máquina.** Se dois PCs rodarem o mesmo `sync.bat`, cada um puxa independentemente do GitHub — não há conflito, pois ambos apenas leem.
 - **Não é necessário fork nem push writes na nova máquina.** Apenas o GitHub Actions escreve no repositório.
-- **Se o repositório for tornado público**, o passo `gh auth login` pode ser pulado — `git clone` funciona anônimo.
 - **Remover tudo depois:** ver seção [Remover o projeto completamente](./SETUP.md#remover-o-projeto-completamente) no `SETUP.md`.
 
 ---
@@ -517,7 +514,7 @@ Se algo quebrou irremediavelmente, consulte [`SETUP.md`](./SETUP.md) — recria 
 - **Rate limit ML:** ~300 reviews por sessão sem bloqueio. Produtos com >5.000 reviews podem exigir múltiplas execuções ou proxy.
 - **Datas relativas em português** (`date_relative`) não são parseáveis programaticamente — use `date_created` (ISO).
 - **CSV é sobrescrito** a cada dia. Snapshots diários preservam histórico, mas edições/deleções de reviews antigas não são detectadas explicitamente (aparecem sumidas).
-- **Repositório privado no GitHub Free:** 2000 min/mês de Actions gratuitos. Uso atual ~2 min/dia = ~60 min/mês. Sobra bastante margem.
+- **GitHub Actions em repositório público:** minutos ilimitados no plano Free. Uso atual ~2 min/dia — sem preocupação de quota.
 
 ---
 
