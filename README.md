@@ -16,8 +16,9 @@ Roda **automaticamente na cloud** (GitHub Actions), com CSV sincronizado para pa
 6. [Estrutura do CSV](#estrutura-do-csv)
 7. [Conectar Power BI / Excel](#conectar-power-bi--excel)
 8. [Personalizações comuns](#personalizações-comuns)
-9. [Troubleshooting](#troubleshooting)
-10. [Limitações](#limitações)
+9. [Importar o projeto em outra máquina](#importar-o-projeto-em-outra-máquina)
+10. [Troubleshooting](#troubleshooting)
+11. [Limitações](#limitações)
 
 ---
 
@@ -275,6 +276,148 @@ schtasks /Change /TN "ML_Reviews_Sync_Daily" /ST 10:30
 Basta adicionar mais IDs ao array `product_ids`. Sem limite prático até ~50 produtos (limitação real = rate limit do ML, não do scraper).
 
 Cada produto = CSV separado. Se quiser um único CSV consolidado, faça `UNION` no BI.
+
+---
+
+## Importar o projeto em outra máquina
+
+Cenário: você tem uma segunda máquina Windows (colega, notebook novo, outro escritório) e quer que ela receba o CSV atualizado automaticamente, sem precisar reconstruir o projeto do zero.
+
+O scraper roda **na cloud (GitHub Actions)** — a máquina nova não executa o scraper, apenas sincroniza os CSVs já gerados. Setup total: ~10 minutos.
+
+### Passo 1 — Instalar pré-requisitos
+
+| Ferramenta | Link | Verificação |
+|---|---|---|
+| Git for Windows | https://git-scm.com/download/win | `git --version` |
+| GitHub CLI | https://cli.github.com | `gh --version` |
+| Python 3.13+ *(opcional, só se for rodar scraper local)* | https://www.python.org/downloads/ | `py -3 --version` |
+
+Durante a instalação do Python, marcar **"Add Python to PATH"**.
+
+### Passo 2 — Autenticar no GitHub
+
+O repositório é privado, então o clone exige credenciais.
+
+```powershell
+gh auth login
+# Selecionar: GitHub.com → HTTPS → Login with a web browser
+gh auth setup-git
+```
+
+Confirmar:
+```powershell
+gh auth status
+```
+
+Esperado: `Logged in to github.com as SEU_USER`.
+
+### Passo 3 — Clonar o repositório
+
+Escolher uma pasta destino. O padrão do projeto é `C:\viniciusdev\Projects\Aula-Antonio\Scrappings - csv`, mas pode ser qualquer caminho.
+
+```powershell
+$dest = "C:\viniciusdev\Projects\Aula-Antonio\Scrappings - csv"
+New-Item -ItemType Directory -Path (Split-Path $dest) -Force | Out-Null
+git clone https://github.com/ViniciusTerra06/ml-reviews-scraper.git $dest
+```
+
+Se você usou outro caminho, substitua `$dest` em todos os passos seguintes.
+
+### Passo 4 — Criar `sync.bat` na pasta destino
+
+O `sync.bat` é o script que puxa os CSVs mais recentes do GitHub. Rodá-lo manualmente ou via Task Scheduler tem o mesmo efeito.
+
+```powershell
+$dest = "C:\viniciusdev\Projects\Aula-Antonio\Scrappings - csv"
+@"
+@echo off
+cd /d "$dest"
+git pull --ff-only >> sync.log 2>&1
+echo [%DATE% %TIME%] pull exit=%ERRORLEVEL% >> sync.log
+exit /b %ERRORLEVEL%
+"@ | Out-File -Encoding ascii "$dest\sync.bat"
+```
+
+Testar manualmente:
+```powershell
+& "$dest\sync.bat"
+Get-Content "$dest\sync.log" -Tail 3
+```
+
+Esperado: linha `pull exit=0` no log.
+
+### Passo 5 — Registrar Windows Scheduled Tasks
+
+Dois gatilhos garantem que o CSV sempre esteja atualizado:
+
+- **Daily 09:00** — cobre o caso PC ligado durante o horário comercial.
+- **On-logon** — cobre o caso PC ficou dias desligado; sincroniza no próximo login.
+
+Ambas rodam sem exigir privilégios de Administrador.
+
+```powershell
+$dest = "C:\viniciusdev\Projects\Aula-Antonio\Scrappings - csv"
+
+# Task diária
+schtasks /Create /SC DAILY `
+  /TN "ML_Reviews_Sync_Daily" `
+  /TR "`"$dest\sync.bat`"" `
+  /ST 09:00 /RL LIMITED /F
+
+# Task on-logon
+$action    = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$dest\sync.bat`""
+$trigger   = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$settings  = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
+Register-ScheduledTask -TaskName "ML_Reviews_Sync_Startup" `
+  -Action $action -Trigger $trigger -Settings $settings `
+  -Principal $principal -Force
+```
+
+### Passo 6 — Validar a instalação
+
+```powershell
+$dest = "C:\viniciusdev\Projects\Aula-Antonio\Scrappings - csv"
+
+# Tasks foram criadas
+Get-ScheduledTask -TaskName "ML_Reviews_Sync_*" | Format-Table TaskName, State
+
+# Disparar sync agora (simula logon)
+Start-ScheduledTask -TaskName "ML_Reviews_Sync_Startup"
+Start-Sleep 3
+Get-Content "$dest\sync.log" -Tail 5
+
+# CSV existe e tem conteúdo
+Get-ChildItem "$dest\data\reviews_*_latest.csv" | Select-Object Name, Length, LastWriteTime
+```
+
+Esperado:
+- Duas tasks com `State = Ready`.
+- Log com `pull exit=0`.
+- Pelo menos um arquivo `reviews_MLBxxxxx_latest.csv` com tamanho > 0.
+
+### Passo 7 — Conectar Power BI / Excel
+
+Seguir a seção [Conectar Power BI / Excel](#conectar-power-bi--excel), apontando para o novo caminho local.
+
+### Passo 8 — (Opcional) Preparar ambiente de desenvolvimento
+
+Só é necessário se esta máquina também for editar o scraper ou testá-lo localmente. Para uso apenas de consumo do CSV, **pular este passo**.
+
+```powershell
+git clone https://github.com/ViniciusTerra06/ml-reviews-scraper.git "C:\dev\Web Scraping"
+cd "C:\dev\Web Scraping"
+py -3 -m pip install -r requirements.txt
+py -3 -X utf8 src\scraper.py
+```
+
+### Notas importantes
+
+- **Nomes das tasks devem ser únicos por máquina.** Se dois PCs rodarem o mesmo `sync.bat`, cada um puxa independentemente do GitHub — não há conflito, pois ambos apenas leem.
+- **Não é necessário fork nem push writes na nova máquina.** Apenas o GitHub Actions escreve no repositório.
+- **Se o repositório for tornado público**, o passo `gh auth login` pode ser pulado — `git clone` funciona anônimo.
+- **Remover tudo depois:** ver seção [Remover o projeto completamente](./SETUP.md#remover-o-projeto-completamente) no `SETUP.md`.
 
 ---
 
